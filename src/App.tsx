@@ -13,6 +13,7 @@ import Monitoring from "./pages/Monitoring";
 import Settings from "./pages/Settings";
 import Admin from "./pages/Admin";
 import AICoach from "./pages/AICoach";
+import PromptExport from "./pages/PromptExport";
 import NotFound from "./pages/NotFound";
 import { AuthProvider } from "./hooks/useAuth";
 
@@ -36,6 +37,7 @@ const App = () => (
             <Route path="/settings" element={<Settings />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/coach" element={<AICoach />} />
+            <Route path="/prompt-export" element={<PromptExport />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
