@@ -8,6 +8,7 @@ import featureIntake from '@/assets/feature-intake.jpg';
 import featureSolutions from '@/assets/feature-solutions.jpg';
 import featureExecution from '@/assets/feature-execution.jpg';
 import featureMonitoring from '@/assets/feature-monitoring.jpg';
+import InstantSolver from '@/components/landing/InstantSolver';
 
 /* ─── Mesh Gradient Background ─── */
 function MeshGradient() {
