@@ -599,6 +599,9 @@ export default function Index() {
         </div>
       </motion.section>
 
+      {/* ─── Instant Solver ─── */}
+      <InstantSolver />
+
       {/* ─── Trusted By Logos ─── */}
       <section className="relative z-10 py-8">
         <div className="container mx-auto px-6 max-w-5xl">
