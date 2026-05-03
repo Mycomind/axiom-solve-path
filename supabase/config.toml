@@ -1,1 +1,4 @@
 project_id = "zjplowplrpdpzofulrhb"
+
+[functions.instant-solve]
+verify_jwt = false
