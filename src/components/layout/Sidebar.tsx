@@ -15,7 +15,8 @@ import {
   Menu,
   X,
   Sparkles,
-  Download
+  Download,
+  Swords
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -27,6 +28,7 @@ const navItems = [
   { icon: ListTodo, label: 'Execution', path: '/execution' },
   { icon: ShieldAlert, label: 'Risk Monitor', path: '/monitoring' },
   { icon: Sparkles, label: 'AI Coach', path: '/coach' },
+  { icon: Swords, label: 'Debate Room', path: '/debate' },
   { icon: Download, label: 'Prompt Export', path: '/prompt-export' },
   { icon: Settings, label: 'Settings', path: '/settings' },
   { icon: Shield, label: 'Admin', path: '/admin' },
