@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Swords,
@@ -12,6 +12,11 @@ import {
   AlertTriangle,
   CheckCircle2,
   XCircle,
+  Copy,
+  Download,
+  Share2,
+  Lightbulb,
+  RotateCcw,
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -21,35 +26,55 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+const PERSONA_ORDER = ["skeptic", "optimist", "engineer", "strategist"] as const;
+
 const PERSONA_META: Record<
   string,
-  { icon: any; color: string; ring: string; bg: string }
+  { icon: any; name: string; desc: string; color: string; ring: string; bg: string; dot: string }
 > = {
   skeptic: {
     icon: ShieldAlert,
+    name: "The Skeptic",
+    desc: "Hunts failure modes",
     color: "text-red-400",
     ring: "ring-red-500/40",
     bg: "from-red-500/10 to-transparent",
+    dot: "bg-red-400",
   },
   optimist: {
     icon: Sparkles,
+    name: "The Optimist",
+    desc: "Maximizes upside",
     color: "text-emerald-400",
     ring: "ring-emerald-500/40",
     bg: "from-emerald-500/10 to-transparent",
+    dot: "bg-emerald-400",
   },
   engineer: {
     icon: Wrench,
+    name: "The Engineer",
+    desc: "Owns feasibility",
     color: "text-amber-400",
     ring: "ring-amber-500/40",
     bg: "from-amber-500/10 to-transparent",
+    dot: "bg-amber-400",
   },
   strategist: {
     icon: Compass,
+    name: "The Strategist",
+    desc: "Plays the long game",
     color: "text-primary",
     ring: "ring-primary/40",
     bg: "from-primary/10 to-transparent",
+    dot: "bg-primary",
   },
 };
+
+const EXAMPLES = [
+  "SaaS churn jumped 40% after a price hike. Roll back, segment pricing, or double down on retention?",
+  "Engineering velocity is dropping. Hire more, refactor the monolith, or cut scope?",
+  "Should we open-source our core product to grow adoption, or keep it closed to protect revenue?",
+];
 
 interface TranscriptEntry {
   persona: string;
@@ -67,12 +92,48 @@ interface Verdict {
   dissent_points: string[];
 }
 
+const LOADING_STAGES = [
+  "Briefing personas",
+  "Skeptic stress-testing",
+  "Optimist arguing upside",
+  "Engineer running feasibility",
+  "Strategist weighing leverage",
+  "Moderator drafting verdict",
+];
+
 export default function DebateRoom() {
   const [problem, setProblem] = useState("");
   const [rounds, setRounds] = useState(2);
   const [loading, setLoading] = useState(false);
+  const [stageIdx, setStageIdx] = useState(0);
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [verdict, setVerdict] = useState<Verdict | null>(null);
+
+  // Hydrate from share URL
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash.startsWith("#d=")) {
+      try {
+        const decoded = JSON.parse(atob(decodeURIComponent(hash.slice(3))));
+        if (decoded.problem) setProblem(decoded.problem);
+        if (decoded.transcript) setTranscript(decoded.transcript);
+        if (decoded.verdict) setVerdict(decoded.verdict);
+        if (decoded.rounds) setRounds(decoded.rounds);
+      } catch {
+        /* ignore */
+      }
+    }
+  }, []);
+
+  // Cycle loading stages
+  useEffect(() => {
+    if (!loading) return;
+    setStageIdx(0);
+    const i = setInterval(() => {
+      setStageIdx((s) => (s + 1) % LOADING_STAGES.length);
+    }, 1800);
+    return () => clearInterval(i);
+  }, [loading]);
 
   const runDebate = async () => {
     if (problem.trim().length < 10) {
@@ -101,6 +162,73 @@ export default function DebateRoom() {
     }
   };
 
+  const reset = () => {
+    setProblem("");
+    setTranscript([]);
+    setVerdict(null);
+    if (window.location.hash) history.replaceState(null, "", window.location.pathname);
+  };
+
+  const buildMarkdown = () => {
+    if (!verdict) return "";
+    const lines = [
+      `# Debate Verdict`,
+      ``,
+      `**Problem:** ${problem}`,
+      ``,
+      `## Verdict (${verdict.confidence}% confidence)`,
+      verdict.verdict,
+      ``,
+      `## Recommended Action`,
+      verdict.recommended_action,
+      ``,
+      `## Consensus`,
+      ...verdict.consensus_points.map((p) => `- ${p}`),
+      ``,
+      `## Dissent`,
+      ...verdict.dissent_points.map((p) => `- ${p}`),
+      ``,
+      `## Key Risks`,
+      ...verdict.key_risks.map((p) => `- ${p}`),
+      ``,
+      `## Winning Argument`,
+      verdict.winning_argument,
+      ``,
+      `---`,
+      `## Transcript`,
+      ...transcript.map((t) => `\n### Round ${t.round} — ${t.name}\n${t.content}`),
+    ];
+    return lines.join("\n");
+  };
+
+  const copyVerdict = async () => {
+    await navigator.clipboard.writeText(buildMarkdown());
+    toast.success("Verdict copied as markdown");
+  };
+
+  const downloadVerdict = () => {
+    const blob = new Blob([buildMarkdown()], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `debate-${Date.now()}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const shareDebate = async () => {
+    if (!verdict) return;
+    const payload = btoa(JSON.stringify({ problem, rounds, transcript, verdict }));
+    const url = `${window.location.origin}${window.location.pathname}#d=${encodeURIComponent(payload)}`;
+    if (url.length > 8000) {
+      toast.error("Debate too large to share via link. Download instead.");
+      return;
+    }
+    history.replaceState(null, "", `#d=${encodeURIComponent(payload)}`);
+    await navigator.clipboard.writeText(url);
+    toast.success("Shareable link copied");
+  };
+
   const groupedByRound = transcript.reduce<Record<number, TranscriptEntry[]>>(
     (acc, e) => {
       (acc[e.round] = acc[e.round] || []).push(e);
@@ -115,7 +243,7 @@ export default function DebateRoom() {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="space-y-3"
+          className="flex items-center justify-between gap-4 flex-wrap"
         >
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-primary/10 ring-1 ring-primary/30 flex items-center justify-center neon-glow">
@@ -128,28 +256,40 @@ export default function DebateRoom() {
               </p>
             </div>
           </div>
+          {(transcript.length > 0 || problem) && !loading && (
+            <Button variant="ghost" size="sm" onClick={reset}>
+              <RotateCcw className="w-4 h-4" /> New debate
+            </Button>
+          )}
         </motion.div>
 
         {/* Persona overview */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[
-            { id: "skeptic", name: "Skeptic", desc: "Hunts failure modes" },
-            { id: "optimist", name: "Optimist", desc: "Maximizes upside" },
-            { id: "engineer", name: "Engineer", desc: "Owns feasibility" },
-            { id: "strategist", name: "Strategist", desc: "Plays the long game" },
-          ].map((p) => {
-            const meta = PERSONA_META[p.id];
+          {PERSONA_ORDER.map((id) => {
+            const meta = PERSONA_META[id];
             const Icon = meta.icon;
+            const isActive =
+              loading &&
+              LOADING_STAGES[stageIdx]?.toLowerCase().includes(id);
             return (
               <Card
-                key={p.id}
-                className={`bg-gradient-to-br ${meta.bg} border-border/50 backdrop-blur-2xl`}
+                key={id}
+                className={`bg-gradient-to-br ${meta.bg} border-border/50 backdrop-blur-2xl transition-all ${
+                  isActive ? `ring-2 ${meta.ring} scale-[1.02]` : ""
+                }`}
               >
                 <CardContent className="p-4 flex items-center gap-3">
-                  <Icon className={`w-5 h-5 ${meta.color}`} />
+                  <div className="relative">
+                    <Icon className={`w-5 h-5 ${meta.color}`} />
+                    {isActive && (
+                      <span
+                        className={`absolute -top-1 -right-1 w-2 h-2 rounded-full ${meta.dot} animate-ping`}
+                      />
+                    )}
+                  </div>
                   <div>
-                    <p className="font-semibold text-sm">{p.name}</p>
-                    <p className="text-xs text-muted-foreground">{p.desc}</p>
+                    <p className="font-semibold text-sm">{meta.name.replace("The ", "")}</p>
+                    <p className="text-xs text-muted-foreground">{meta.desc}</p>
                   </div>
                 </CardContent>
               </Card>
@@ -159,7 +299,7 @@ export default function DebateRoom() {
 
         {/* Input */}
         <Card className="bg-card/50 backdrop-blur-2xl border-border/50">
-          <CardHeader>
+          <CardHeader className="pb-3">
             <CardTitle className="text-lg">Drop your problem</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -171,7 +311,24 @@ export default function DebateRoom() {
               className="resize-none"
               disabled={loading}
             />
-            <div className="flex flex-wrap items-center justify-between gap-3">
+
+            <div className="flex flex-wrap gap-2">
+              <span className="text-xs text-muted-foreground flex items-center gap-1 mr-1">
+                <Lightbulb className="w-3 h-3" /> Try:
+              </span>
+              {EXAMPLES.map((ex, i) => (
+                <button
+                  key={i}
+                  onClick={() => !loading && setProblem(ex)}
+                  disabled={loading}
+                  className="text-xs px-2.5 py-1 rounded-full border border-border/60 bg-background/40 hover:border-primary/50 hover:text-primary transition-colors disabled:opacity-50"
+                >
+                  {ex.slice(0, 48)}…
+                </button>
+              ))}
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">Rounds:</span>
                 {[1, 2, 3].map((n) => (
@@ -205,6 +362,56 @@ export default function DebateRoom() {
                 )}
               </Button>
             </div>
+
+            {/* Loading stage indicator */}
+            <AnimatePresence>
+              {loading && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="rounded-lg border border-primary/30 bg-primary/5 p-3 overflow-hidden"
+                >
+                  <div className="flex items-center gap-2 text-sm">
+                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                    <AnimatePresence mode="wait">
+                      <motion.span
+                        key={stageIdx}
+                        initial={{ opacity: 0, y: 4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -4 }}
+                        className="text-foreground/90"
+                      >
+                        {LOADING_STAGES[stageIdx]}…
+                      </motion.span>
+                    </AnimatePresence>
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2">
+                    {PERSONA_ORDER.map((id) => {
+                      const meta = PERSONA_META[id];
+                      return (
+                        <div
+                          key={id}
+                          className="h-1.5 rounded-full bg-border/40 overflow-hidden"
+                        >
+                          <motion.div
+                            className={`h-full ${meta.dot}`}
+                            initial={{ width: "0%" }}
+                            animate={{ width: ["0%", "100%", "0%"] }}
+                            transition={{
+                              duration: 2.4,
+                              repeat: Infinity,
+                              ease: "easeInOut",
+                              delay: PERSONA_ORDER.indexOf(id) * 0.3,
+                            }}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </CardContent>
         </Card>
 
@@ -222,9 +429,20 @@ export default function DebateRoom() {
                       <Gavel className="w-5 h-5 text-primary" />
                       <CardTitle>Moderator's Verdict</CardTitle>
                     </div>
-                    <Badge variant="outline" className="border-primary/40 text-primary">
-                      Confidence {verdict.confidence}%
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="border-primary/40 text-primary">
+                        Confidence {verdict.confidence}%
+                      </Badge>
+                      <Button size="sm" variant="ghost" onClick={copyVerdict} title="Copy as markdown">
+                        <Copy className="w-4 h-4" />
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={downloadVerdict} title="Download .md">
+                        <Download className="w-4 h-4" />
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={shareDebate} title="Copy share link">
+                        <Share2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-5">
@@ -296,8 +514,62 @@ export default function DebateRoom() {
           )}
         </AnimatePresence>
 
+        {/* Loading skeleton transcript */}
+        {loading && (
+          <div className="space-y-6">
+            {Array.from({ length: rounds }).map((_, r) => (
+              <div key={r} className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <Badge variant="outline" className="border-primary/40 text-primary">
+                    Round {r + 1}
+                  </Badge>
+                  <div className="flex-1 h-px bg-border/50" />
+                </div>
+                <div className="grid md:grid-cols-2 gap-4">
+                  {PERSONA_ORDER.map((id) => {
+                    const meta = PERSONA_META[id];
+                    const Icon = meta.icon;
+                    return (
+                      <Card
+                        key={id}
+                        className={`bg-gradient-to-br ${meta.bg} border-border/50 backdrop-blur-2xl`}
+                      >
+                        <CardContent className="p-4 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Icon className={`w-4 h-4 ${meta.color}`} />
+                            <p className="font-semibold text-sm">{meta.name}</p>
+                            <span className="ml-auto flex gap-1">
+                              {[0, 1, 2].map((d) => (
+                                <motion.span
+                                  key={d}
+                                  className={`w-1.5 h-1.5 rounded-full ${meta.dot}`}
+                                  animate={{ opacity: [0.3, 1, 0.3] }}
+                                  transition={{
+                                    duration: 1.2,
+                                    repeat: Infinity,
+                                    delay: d * 0.2,
+                                  }}
+                                />
+                              ))}
+                            </span>
+                          </div>
+                          <div className="space-y-1.5">
+                            <div className="h-2 rounded bg-border/40 w-full animate-pulse" />
+                            <div className="h-2 rounded bg-border/40 w-5/6 animate-pulse" />
+                            <div className="h-2 rounded bg-border/40 w-2/3 animate-pulse" />
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Transcript */}
-        {Object.keys(groupedByRound).length > 0 && (
+        {!loading && Object.keys(groupedByRound).length > 0 && (
           <div className="space-y-6">
             <h2 className="text-xl font-bold flex items-center gap-2">
               <Swords className="w-5 h-5 text-primary" />
