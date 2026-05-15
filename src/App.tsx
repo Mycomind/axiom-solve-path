@@ -15,6 +15,7 @@ import Admin from "./pages/Admin";
 import AICoach from "./pages/AICoach";
 import PromptExport from "./pages/PromptExport";
 import DebateRoom from "./pages/DebateRoom";
+import SearchConsole from "./pages/SearchConsole";
 import NotFound from "./pages/NotFound";
 import { AuthProvider } from "./hooks/useAuth";
 
@@ -40,6 +41,7 @@ const App = () => (
             <Route path="/coach" element={<AICoach />} />
             <Route path="/prompt-export" element={<PromptExport />} />
             <Route path="/debate" element={<DebateRoom />} />
+            <Route path="/search-console" element={<SearchConsole />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
