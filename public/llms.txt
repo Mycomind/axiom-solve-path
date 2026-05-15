@@ -1,0 +1,22 @@
+# Ruthless OS
+
+> AI-powered problem-solving operating system: diagnose root causes, score solutions, plan execution, and monitor risk through a 4-stage workflow.
+
+Ruthless OS helps teams turn vague problems into ranked solutions, concrete execution plans, KPIs, and live risk monitoring — orchestrated by AI agents.
+
+## Pages
+
+- [Home](/): Landing page with the instant problem solver and workflow overview.
+- [Problem Intake](/intake): Stage 1 — capture problems and run root cause analysis.
+- [Solutions](/solutions): Stage 2 — AI-generated solutions scored on 6 dimensions.
+- [Execution](/execution): Stage 3 — turn chosen solutions into tasks, KPIs, and milestones.
+- [Risk Monitor](/monitoring): Stage 4 — KPI health, kill-switches, and audit log.
+- [Dashboard](/dashboard): Real-time view of active problems, KPI health, and alerts.
+- [AI Coach](/coach): Conversational AI assistant for problem-solving guidance.
+- [Debate Room](/debate): Multi-agent AI debate that converges on a verdict.
+- [Prompt Export](/prompt-export): Export structured problem data as agent-ready prompt packages.
+
+## Optional
+
+- [Auth](/auth): Sign in / sign up.
+- [Settings](/settings): Account and preferences.
